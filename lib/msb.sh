@@ -92,6 +92,17 @@ msb_is_running() {
   "$MSB_BIN" ps -q 2>/dev/null | grep -Fxq "$1"
 }
 
+# msb_box_running -> names of running box-* sandboxes, one per line.
+# Under dry-run it echoes the BOX_FAKE_BOX_RUNNING test seam (space-separated).
+msb_box_running() {
+  if [[ -n "${BOX_DRY_RUN:-}" ]]; then
+    local _names; read -ra _names <<< "${BOX_FAKE_BOX_RUNNING:-}"
+    [[ ${#_names[@]} -gt 0 ]] && printf '%s\n' "${_names[@]}"
+    return 0
+  fi
+  "$MSB_BIN" ps -q 2>/dev/null | grep '^box-' || true
+}
+
 # msb_up NAME IMAGE WORKSPACE MODE [HOST...]
 # Boots a detached, persistent named sandbox with volumes, workspace, egress.
 # Detached run ignores a trailing command, so callers exec separately (msb_attach).

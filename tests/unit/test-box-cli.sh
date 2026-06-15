@@ -43,9 +43,25 @@ assert_contains "$out_badnet" "none|sanctioned|full" "invalid --net explains val
 rc2=0; run_box --net >/dev/null 2>&1 || rc2=$?
 assert_eq "2" "$rc2" "missing --net argument exits 2"
 
-# down stops the sandbox
+# down stops the sandbox (alias of stop)
 down="$(run_box down)"
 assert_contains "$down" "msb stop box-" "down stops the sandbox"
+
+# stop stops this directory's sandbox
+stop1="$(run_box stop)"
+assert_contains "$stop1" "msb stop box-" "stop stops this directory's sandbox"
+
+# stop --all stops every running box sandbox (via the BOX_FAKE_BOX_RUNNING seam)
+stopall="$( proj="$(mktemp -d)"; cd "$proj" && XDG_STATE_HOME="$proj/.s" BOX_DRY_RUN=1 BOX_FAKE_BOX_RUNNING="box-alpha box-beta" "$ROOT/box" stop --all 2>&1 )"
+assert_contains "$stopall" "msb stop box-alpha" "stop --all stops box-alpha"
+assert_contains "$stopall" "msb stop box-beta" "stop --all stops box-beta"
+
+# ls lists running box sandboxes; empty when none
+lsout="$( proj="$(mktemp -d)"; cd "$proj" && XDG_STATE_HOME="$proj/.s" BOX_DRY_RUN=1 BOX_FAKE_BOX_RUNNING="box-alpha box-beta" "$ROOT/box" ls 2>&1 )"
+assert_contains "$lsout" "box-alpha" "ls lists box-alpha"
+assert_contains "$lsout" "box-beta" "ls lists box-beta"
+lsempty="$(run_box ls)"
+assert_contains "$lsempty" "no running sandboxes" "ls reports none when empty"
 
 # reset stops, removes, and clears the marker
 reset="$(run_box reset)"

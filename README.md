@@ -73,9 +73,14 @@ box self-update --dry-run
 | `box provision` | Build step (open egress): install mise + project tools into the volume. |
 | `box provision --shell` | Interactive open-egress root shell to add things manually (see below). |
 | `box provision -- CMD...` | One-off open-egress command (e.g. fetch from a non-allowlisted host). |
-| `box down` | Stop the sandbox. |
+| `box ls` | List running sandboxes (this directory's is marked). |
+| `box stop [--all]` | Stop this directory's sandbox, or `--all` running sandboxes. |
+| `box down` | Alias for `box stop` (this directory). |
 | `box reset` | Stop and remove the sandbox + marker. Named volumes must be removed manually: `msb volume rm box-mise box-home`. |
 | `box --net MODE` | Override egress mode: `none`, `sanctioned` (default), or `full`. |
+| `box install` | Symlink box into a writable bin dir on your PATH. |
+| `box self-update` | Update box's git checkout to the latest release tag. |
+| `box --version` | Print the box version. |
 | `box --help` | Show usage. |
 
 ## Two-phase model
