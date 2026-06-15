@@ -1,0 +1,4 @@
+# Dev tools for working on the box repo itself.
+[tools]
+shellcheck = "latest"
+shfmt = "latest"

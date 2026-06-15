@@ -1,0 +1,36 @@
+# Container-registry hostnames for Docker pulls inside the sandbox.
+# box merges these into the egress allowlist only in --docker mode (the sandbox's
+# egress is host-enforced at the VM boundary, so docker pulls go through it).
+# Same format as allowlist.default: bare host = exact, *.host = subdomains.
+
+# Docker Hub
+registry-1.docker.io
+auth.docker.io
+production.cloudflare.docker.com
+# Docker Hub also serves image config/blob downloads from AWS CloudFront under
+# production.cloudfront.docker.com (note: cloudFRONT, distinct from the
+# cloudFLARE host above — Docker uses both depending on routing).
+production.cloudfront.docker.com
+*.cloudfront.net
+# Docker Hub now serves image blob downloads from Cloudflare R2 buckets
+# under randomly-named subdomains of cloudflarestorage.com, e.g.
+# docker-images-prod.<hash>.r2.cloudflarestorage.com.
+*.r2.cloudflarestorage.com
+
+# Microsoft Container Registry (devcontainers/base; multi-arch)
+mcr.microsoft.com
+*.data.mcr.microsoft.com
+*.azureedge.net
+
+# Quay (testcontainers / postgres / redis frequently host here)
+quay.io
+*.quay.io
+cdn.quay.io
+cdn03.quay.io
+cdn04.quay.io
+
+# Google Container Registry (some testcontainers images)
+gcr.io
+storage.googleapis.com
+
+# (download.docker.com is in allowlist.base; ghcr.io is in allowlist.base)
