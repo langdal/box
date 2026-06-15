@@ -25,7 +25,7 @@ assert_contains "$out" "--mount-dir /tmp/p:/workspace" "mounts workspace"
 assert_contains "$out" "--mount-named box-mise:/mise" "mounts mise volume"
 assert_contains "$out" "--net-default-egress deny" "locked egress"
 # image is the LAST token, with no trailing `-- cmd`
-assert_eq "mcr.microsoft.com/devcontainers/base:ubuntu" "$(echo "$out" | sed 's/.* //')" "image is last token"
+assert_eq "mcr.microsoft.com/devcontainers/base:ubuntu" "${out##* }" "image is last token"
 
 # msb_up with no hosts still works (sanctioned, deny only).
 out_nohost="$(msb_up box-proj img /tmp/p sanctioned)"

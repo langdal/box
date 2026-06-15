@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+BOX_VERSION="0.0.0" # x-release-please-version
+
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 source "$SCRIPT_DIR/lib/allowlist.sh"
 source "$SCRIPT_DIR/lib/secrets.sh"
@@ -34,6 +36,7 @@ Usage: box [--net none|sanctioned|full] [--docker] [COMMAND]
   box reset               Stop and remove the sandbox + named volumes.
   box install             Symlink box into a writable bin dir on your PATH.
   box self-update         Update box's git checkout to the latest release tag.
+  box --version           Print the box version.
   box --help              Show this help.
 
 Egress modes: none (airgapped), sanctioned (default; deny + allowlist), full (provision).
@@ -304,6 +307,7 @@ MODE="sanctioned"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h) usage; exit 0 ;;
+    --version|-V) echo "box $BOX_VERSION"; exit 0 ;;
     --docker) BOX_DOCKER_MODE=1; shift ;;
     --port)
       [[ $# -ge 2 ]] || { echo "box: --port requires an argument (PORT or HOST:GUEST)" >&2; exit 2; }

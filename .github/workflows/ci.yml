@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # mise installs the repo's dev tools (shellcheck, shfmt) from mise.toml.
+      - name: Set up mise
+        uses: jdx/mise-action@v2 # TODO: pin to a commit SHA, like the other actions
+        with:
+          install: true
+          cache: true
+
+      - name: Lint
+        run: bash scripts/lint.sh
+
+      - name: Unit tests
+        run: bash tests/run.sh
+        # Pure dry-run tests (BOX_DRY_RUN) — no microVM needed. Live `msb`
+        # validation (boot/docker/host-reach) requires KVM + microsandbox and is
+        # not run in CI yet; see TODO.md.
+
+  ci:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Verify all required jobs passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs failed or were cancelled" >&2
+            exit 1
+          fi

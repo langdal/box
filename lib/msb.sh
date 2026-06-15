@@ -152,6 +152,7 @@ msb_docker_args() {
 # competing AAAA, so name-based host access "just works". Idempotent.
 msb_host_alias() {
   local name="$1"
+  # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
   _msb exec "$name" -- sh -c 'grep -q " host.docker.internal$" /etc/hosts 2>/dev/null && exit 0; gw=$(ip route 2>/dev/null | awk "/default/{print \$3; exit}"); [ -n "$gw" ] && printf "%s host.docker.internal\n" "$gw" >> /etc/hosts'
 }
 
@@ -160,6 +161,7 @@ msb_host_alias() {
 # after a fresh msb_up in docker mode, before the user's command.
 msb_docker_wait() {
   local name="$1"
+  # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
   _msb exec "$name" -- sh -c 'i=0; while [ $i -lt 120 ]; do docker info >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 1; done; echo "box: dockerd did not become ready in 120s" >&2; exit 1'
 }
 
@@ -212,6 +214,7 @@ msb_provision() {
   # Run-time PATH/activation is handled by msb_attach injecting --env (the
   # /mise volume persists, so the installed binaries are all that is needed);
   # no shell-rc seeding is required here.
+  # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
   local script='set -e
 export MISE_DATA_DIR=/mise MISE_CONFIG_DIR=/mise MISE_CACHE_DIR=/mise/cache
 export PATH=/mise/bin:$PATH
