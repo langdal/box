@@ -4,6 +4,20 @@
 # Syntax confirmed in docs/superpowers/SPIKE-microsandbox.md (Task 0).
 # Arg-builder functions emit one token per line; callers use `mapfile -t`.
 
+# Stock macOS ships bash 3.2, which lacks the `mapfile`/`readarray` builtin.
+# Provide a minimal `mapfile -t NAME` polyfill so box runs on the system bash
+# without requiring `brew install bash`. (Only the `-t` form box uses is needed.)
+if ! type mapfile >/dev/null 2>&1; then
+  mapfile() {
+    [[ "${1:-}" == "-t" ]] && shift
+    local _arr="$1" _line
+    eval "$_arr=()"
+    while IFS= read -r _line; do
+      eval "$_arr+=(\"\$_line\")"
+    done
+  }
+fi
+
 # msb_net_args MODE [HOST...] -> egress flags.
 #   full       = open egress (provision)
 #   none       = deny all (airgapped)
@@ -131,7 +145,9 @@ msb_up() {
     mapfile -t _port_tokens <<< "$BOX_PORTS"
     mapfile -t ports < <(msb_port_args "${_port_tokens[@]}")
   fi
-  args+=("${mounts[@]}" "${net[@]}" "${secrets[@]}" "${docker[@]}" "${ports[@]}" "$image")
+  # secrets/docker/ports may be empty; ${x[@]+...} keeps that safe under set -u
+  # on bash 3.2 (where expanding an empty array is otherwise an "unbound" error).
+  args+=("${mounts[@]}" "${net[@]}" ${secrets[@]+"${secrets[@]}"} ${docker[@]+"${docker[@]}"} ${ports[@]+"${ports[@]}"} "$image")
   _msb "${args[@]}"
 }
 
