@@ -249,13 +249,29 @@ msb_docker_wait() {
 # /root is on the ephemeral rootfs). msb_home_seed populates the shell config.
 _MSB_GUEST_PATH=/mise/shims:/mise/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 _MSB_HOME=/home/vscode
+# Scratch dir for tools that unpack/build in TMPDIR (pip, npm, cargo). The guest
+# /tmp is a small RAM-backed tmpfs that large installs blow out ("No space left
+# on device"); /workspace is the host-backed bind mount, so TMPDIR there draws on
+# host disk and survives reboots. msb_tmp_seed creates it at boot. Override with
+# BOX_TMPDIR (set it to /tmp to restore the default tmpfs behaviour).
+_MSB_TMPDIR="${BOX_TMPDIR:-/workspace/.tmp}"
 msb_mise_env_args() {
   printf '%s\n' \
     --env "HOME=$_MSB_HOME" \
     --env "PATH=$_MSB_GUEST_PATH" \
+    --env "TMPDIR=$_MSB_TMPDIR" \
     --env "MISE_DATA_DIR=/mise" \
     --env "MISE_CONFIG_DIR=/mise" \
     --env "MISE_CACHE_DIR=/mise/cache"
+}
+
+# msb_tmp_seed NAME -> ensure the scratch TMPDIR (msb_mise_env_args injects it)
+# exists in the guest before any command runs; tools like pip require TMPDIR to
+# already exist. It lives on the host-backed /workspace mount, so a single create
+# persists across cold boots. Idempotent.
+msb_tmp_seed() {
+  local name="$1"
+  _msb exec "$name" -- mkdir -p "$_MSB_TMPDIR"
 }
 
 # msb_home_seed NAME -> seed the persistent home (box-home at /home/vscode) with

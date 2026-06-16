@@ -38,7 +38,17 @@ attach_out="$(msb_attach box-proj -- echo hi)"
 assert_contains "$attach_out" "msb exec" "attach via exec"
 assert_contains "$attach_out" "--env PATH=/mise/shims:/mise/bin:" "attach injects mise PATH"
 assert_contains "$attach_out" "--env HOME=/home/vscode" "attach points HOME at the persistent home volume"
+assert_contains "$attach_out" "--env TMPDIR=/workspace/.tmp" "attach points TMPDIR at host-backed workspace scratch"
 assert_contains "$attach_out" "--workdir /workspace" "attach lands in the workspace"
+
+# TMPDIR is overridable via BOX_TMPDIR (e.g. back to the default tmpfs).
+# Re-source so the BOX_TMPDIR override is read at definition time.
+tmp_out="$(BOX_TMPDIR=/tmp bash -c 'source "'"$ROOT"'/lib/msb.sh"; BOX_DRY_RUN=1 msb_attach box-proj -- echo hi')"
+assert_contains "$tmp_out" "--env TMPDIR=/tmp" "BOX_TMPDIR overrides the scratch dir"
+
+# msb_tmp_seed creates the scratch dir in the guest (pip et al. need it to exist).
+seed_out="$(msb_tmp_seed box-proj)"
+assert_contains "$seed_out" "msb exec box-proj -- mkdir -p /workspace/.tmp" "tmp_seed creates the scratch dir"
 assert_contains "$attach_out" "--rlimit nofile=65536" "attach raises the guest open-file limit"
 assert_contains "$attach_out" "box-proj -- echo hi" "attach passes command to sandbox"
 

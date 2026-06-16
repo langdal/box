@@ -313,6 +313,7 @@ boot_fresh() {
   msb_up "$name" "$IMAGE" "$PWD" "$mode" "${hosts[@]}"
   msb_net_fix "$name"
   msb_home_seed "$name"
+  msb_tmp_seed "$name"
   if [[ -n "${BOX_DOCKER:-}" ]]; then
     echo "box: waiting for dockerd to start inside the sandbox..." >&2
     msb_docker_wait "$name"
