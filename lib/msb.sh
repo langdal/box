@@ -218,13 +218,28 @@ msb_docker_wait() {
 # Therefore: exec as root (writable workspace) and inject the mise env directly.
 # /mise (box-mise volume) holds the real mise binary + shims, so PATH alone makes
 # `mise` and every mise-managed tool resolve in a non-interactive `bash -lc`.
+# HOME is pointed at the box-home volume (/home/vscode) so shell history, git
+# config, SSH keys, and Claude Code auth persist across cold boots (root's real
+# /root is on the ephemeral rootfs). msb_home_seed populates the shell config.
 _MSB_GUEST_PATH=/mise/shims:/mise/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+_MSB_HOME=/home/vscode
 msb_mise_env_args() {
   printf '%s\n' \
+    --env "HOME=$_MSB_HOME" \
     --env "PATH=$_MSB_GUEST_PATH" \
     --env "MISE_DATA_DIR=/mise" \
     --env "MISE_CONFIG_DIR=/mise" \
     --env "MISE_CACHE_DIR=/mise/cache"
+}
+
+# msb_home_seed NAME -> seed the persistent home (box-home at /home/vscode) with
+# the image's root shell config the first time, so a HOME=/home/vscode shell has
+# oh-my-zsh + history settings (and thus actually writes ~/.zsh_history there).
+# Idempotent: only seeds when the home has no .zshrc yet.
+msb_home_seed() {
+  local name="$1"
+  # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
+  _msb exec "$name" -- sh -c 'h=/home/vscode; [ -e "$h/.zshrc" ] && exit 0; for f in .zshrc .zprofile .bashrc .profile .oh-my-zsh; do [ -e "/root/$f" ] && cp -an "/root/$f" "$h/" 2>/dev/null; done; true'
 }
 
 # msb_stop NAME / msb_remove NAME -> sandbox lifecycle teardown.

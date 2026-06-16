@@ -15,6 +15,7 @@ assert_contains "$def" "msb run -d --replace --name box-" "default boots detache
 assert_contains "$def" "--net-default-egress deny" "default run is locked down"
 assert_contains "$def" "msb exec" "default attaches a shell"
 assert_contains "$def" "no-aaaa" "boot applies no-aaaa (IPv4-only resolution; macOS IPv6-egress fix)"
+assert_contains "$def" "/home/vscode" "boot seeds the persistent home (history/config persistence)"
 
 # one-off command
 oneoff="$(run_box -- echo hello)"
