@@ -57,6 +57,23 @@ msb_net_args() {
   esac
 }
 
+# msb_dns_args -> --dns-nameserver flags for microsandbox's guest DNS proxy.
+# By default the proxy forwards guest queries to the host's /etc/resolv.conf
+# nameservers. That breaks when the host resolver is reachable only through a
+# VPN/tunnel (e.g. WireGuard): the proxy's forwarding path does not traverse the
+# tunnel, so every guest lookup times out even though egress-by-IP still works.
+# box reaches only public services, so it forwards to public resolvers the proxy
+# can always reach. Override with BOX_DNS (comma/space-separated list); set
+# BOX_DNS=host to keep microsandbox's default (forward to the host's nameservers).
+msb_dns_args() {
+  local dns="${BOX_DNS:-1.1.1.1,8.8.8.8}"
+  [[ "$dns" == "host" ]] && return 0
+  local d
+  for d in ${dns//,/ }; do
+    [[ -n "$d" ]] && printf '%s\n' --dns-nameserver "$d"
+  done
+}
+
 # msb_mount_args WORKSPACE [VOLUME:GUEST...] -> mount flags.
 msb_mount_args() {
   local workspace="$1"; shift || true
@@ -130,7 +147,10 @@ msb_up() {
   # --replace forces a fresh boot so allowlist/secret changes take effect.
   local args=(run -d --replace --name "$name")
   mapfile -t mounts < <(msb_mount_args "$workspace" box-mise:/mise box-home:/home/vscode)
-  mapfile -t net < <(msb_net_args "$mode" "${hosts[@]}")
+  # hosts may be empty (full/none mode, or no allowlist); bash 3.2 leaves an
+  # empty array unset, so guard the expansion to satisfy set -u.
+  mapfile -t net < <(msb_net_args "$mode" ${hosts[@]+"${hosts[@]}"})
+  mapfile -t dns < <(msb_dns_args)
   local secrets=()
   if [[ -n "${BOX_SECRETS:-}" ]]; then
     mapfile -t _secret_tokens <<< "$BOX_SECRETS"
@@ -147,7 +167,7 @@ msb_up() {
   fi
   # secrets/docker/ports may be empty; ${x[@]+...} keeps that safe under set -u
   # on bash 3.2 (where expanding an empty array is otherwise an "unbound" error).
-  args+=("${mounts[@]}" "${net[@]}" ${secrets[@]+"${secrets[@]}"} ${docker[@]+"${docker[@]}"} ${ports[@]+"${ports[@]}"} "$image")
+  args+=("${mounts[@]}" "${net[@]}" ${dns[@]+"${dns[@]}"} ${secrets[@]+"${secrets[@]}"} ${docker[@]+"${docker[@]}"} ${ports[@]+"${ports[@]}"} "$image")
   _msb "${args[@]}"
 }
 
@@ -265,6 +285,7 @@ msb_provision() {
   local image="$1" workspace="$2"
   mapfile -t mounts < <(msb_mount_args "$workspace" box-mise:/mise box-home:/home/vscode)
   mapfile -t net < <(msb_net_args full)
+  mapfile -t dns < <(msb_dns_args)
   # Guest-side provisioning script (runs as root, open egress). mise
   # data/config/cache all live on the persistent /mise (box-mise) volume.
   # Install mise into /mise/bin if absent, then install the project tools.
@@ -281,7 +302,7 @@ fi
 mise trust --yes /workspace 2>/dev/null || true
 mise install -C /workspace || mise install
 '
-  _msb run "${mounts[@]}" "${net[@]}" "$image" -- bash -lc "$script"
+  _msb run "${mounts[@]}" "${net[@]}" ${dns[@]+"${dns[@]}"} "$image" -- bash -lc "$script"
 }
 
 # msb_provision_shell IMAGE WORKSPACE [CMD...]
@@ -295,8 +316,9 @@ msb_provision_shell() {
   if [[ ${#cmd[@]} -eq 0 ]]; then cmd=(/usr/bin/bash); fi
   mapfile -t mounts < <(msb_mount_args "$workspace" box-mise:/mise box-home:/home/vscode)
   mapfile -t net < <(msb_net_args full)
+  mapfile -t dns < <(msb_dns_args)
   mapfile -t env < <(msb_mise_env_args)
-  _msb run "${mounts[@]}" "${net[@]}" "${env[@]}" --workdir /workspace "$image" -- "${cmd[@]}"
+  _msb run "${mounts[@]}" "${net[@]}" ${dns[@]+"${dns[@]}"} "${env[@]}" --workdir /workspace "$image" -- "${cmd[@]}"
 }
 
 # msb_image_exists TAG -> 0 if the image is in microsandbox's local store.

@@ -222,6 +222,25 @@ For **ollama**, run it on the host and set the agent framework's base URL to
 IPv4-only host services — prefer `host.docker.internal`.) Applied at boot; if the
 sandbox is already running, `box down` first.
 
+## DNS (`BOX_DNS`)
+
+microsandbox runs a DNS proxy the guest queries; by default that proxy forwards
+to **the host's own `/etc/resolv.conf` nameservers**. That breaks when the host
+resolver is reachable only through a VPN/tunnel (e.g. **WireGuard**): the proxy's
+forwarding path doesn't traverse the tunnel, so every guest lookup times out even
+though egress-by-IP still works (symptom: `curl` hangs at "Resolving…", agents
+fail with `ECONNRESET`/connection errors).
+
+box sidesteps this by forwarding the guest's DNS to **public resolvers**
+(`1.1.1.1`, `8.8.8.8`) that the proxy can always reach — box only talks to public
+services, so this is safe and the egress allowlist still applies at the IP layer.
+
+- Override the resolver(s): `BOX_DNS=9.9.9.9` (comma/space-separated for several).
+- Keep microsandbox's default (forward to the host's nameservers, e.g. for
+  internal/split-horizon DNS): `BOX_DNS=host`.
+
+Applied at boot; if the sandbox is already running, `box down` first.
+
 ## Egress modes
 
 | Mode | Behaviour |
