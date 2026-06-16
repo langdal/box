@@ -18,7 +18,10 @@ agent writes into the VM, both see the same files.
 ## Requirements
 
 - **Linux with KVM** (`/dev/kvm` accessible, user in `kvm` group) — validated.
-- **macOS Apple Silicon** — architecturally supported, not yet validated.
+- **macOS Apple Silicon** — supported; `box install` + `box` validated. Note
+  macOS ships bash 3.2, so box requires a newer bash — `brew install bash`
+  (box re-execs itself under `/opt/homebrew/bin/bash` automatically).
+- **bash ≥ 4** (Linux distros have it; macOS needs `brew install bash`).
 - **docker or podman on the host** (optional) — used to auto-build the default
   base image (`box-base:local` = devcontainers base + socat) and the docker-mode
   image. Without a builder, box falls back to the plain pulled base (no baked
