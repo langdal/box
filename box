@@ -311,7 +311,7 @@ boot_or_attach() {  # MODE -- CMD...
 boot_fresh() {
   local name="$1" mode="$2" sig="$3"
   msb_up "$name" "$IMAGE" "$PWD" "$mode" "${hosts[@]}"
-  msb_dns_fix "$name"
+  msb_net_fix "$name"
   if [[ -n "${BOX_DOCKER:-}" ]]; then
     echo "box: waiting for dockerd to start inside the sandbox..." >&2
     msb_docker_wait "$name"

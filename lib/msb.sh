@@ -183,18 +183,18 @@ msb_host_alias() {
   _msb exec "$name" -- sh -c 'grep -q " host.docker.internal$" /etc/hosts 2>/dev/null && exit 0; gw=$(ip route 2>/dev/null | awk "/default/{print \$3; exit}"); [ -n "$gw" ] && printf "%s host.docker.internal\n" "$gw" >> /etc/hosts'
 }
 
-# msb_dns_fix NAME -> suppress AAAA lookups in the guest (glibc 'options no-aaaa').
-# microsandbox hands out AAAA records but guest IPv6 egress is unreliable — on
-# macOS it is dead (curl -6 times out) yet the guest still has an IPv6 default
-# route and nameserver, so we CANNOT gate on route presence. IPv6-preferring
-# clients (Node/Claude Code) otherwise commit to the dead IPv6 address and get
-# ECONNRESET/timeout while curl's Happy-Eyeballs masks it. box talks to A-record
-# hosts only, so forcing IPv4 resolution is safe (and a no-op on Linux where IPv6
-# also works). Idempotent.
-msb_dns_fix() {
+# msb_net_fix NAME -> make the guest IPv4-only. microsandbox advertises IPv6
+# (AAAA records + a default route + nameserver) but guest IPv6 egress is dead on
+# macOS (curl -6 times out), so IPv6-preferring clients HANG or ECONNRESET:
+# observed with Node/Claude Code AND mise (Rust). curl's Happy-Eyeballs masks it.
+# We disable IPv6 in the guest kernel — resolver-independent, so it covers clients
+# that bypass /etc/resolv.conf (c-ares, Rust) — and also add glibc 'options
+# no-aaaa' as belt-and-suspenders. box talks to A-record hosts only, so this is
+# safe (and harmless on Linux where IPv6 also works). Idempotent.
+msb_net_fix() {
   local name="$1"
   # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
-  _msb exec "$name" -- sh -c 'grep -q "^options.*\bno-aaaa\b" /etc/resolv.conf 2>/dev/null || echo "options no-aaaa" >> /etc/resolv.conf'
+  _msb exec "$name" -- sh -c 'sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1; sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1; grep -q "^options.*\bno-aaaa\b" /etc/resolv.conf 2>/dev/null || echo "options no-aaaa" >> /etc/resolv.conf'
 }
 
 # msb_docker_wait NAME -> block until dockerd is ready (cold boot starts systemd
