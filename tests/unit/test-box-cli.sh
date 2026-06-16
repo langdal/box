@@ -14,8 +14,7 @@ def="$(run_box)"
 assert_contains "$def" "msb run -d --replace --name box-" "default boots detached sandbox"
 assert_contains "$def" "--net-default-egress deny" "default run is locked down"
 assert_contains "$def" "msb exec" "default attaches a shell"
-assert_contains "$def" "disable_ipv6" "boot disables guest IPv6 (macOS egress fix)"
-assert_contains "$def" "no-aaaa" "boot also sets no-aaaa belt-and-suspenders"
+assert_contains "$def" "no-aaaa" "boot applies no-aaaa (IPv4-only resolution; macOS IPv6-egress fix)"
 
 # one-off command
 oneoff="$(run_box -- echo hello)"

@@ -183,18 +183,19 @@ msb_host_alias() {
   _msb exec "$name" -- sh -c 'grep -q " host.docker.internal$" /etc/hosts 2>/dev/null && exit 0; gw=$(ip route 2>/dev/null | awk "/default/{print \$3; exit}"); [ -n "$gw" ] && printf "%s host.docker.internal\n" "$gw" >> /etc/hosts'
 }
 
-# msb_net_fix NAME -> make the guest IPv4-only. microsandbox advertises IPv6
-# (AAAA records + a default route + nameserver) but guest IPv6 egress is dead on
-# macOS (curl -6 times out), so IPv6-preferring clients HANG or ECONNRESET:
-# observed with Node/Claude Code AND mise (Rust). curl's Happy-Eyeballs masks it.
-# We disable IPv6 in the guest kernel — resolver-independent, so it covers clients
-# that bypass /etc/resolv.conf (c-ares, Rust) — and also add glibc 'options
-# no-aaaa' as belt-and-suspenders. box talks to A-record hosts only, so this is
-# safe (and harmless on Linux where IPv6 also works). Idempotent.
+# msb_net_fix NAME -> suppress AAAA lookups in the guest (glibc 'options no-aaaa').
+# microsandbox hands out AAAA records and a global IPv6 route, but guest IPv6
+# *egress* is dead on macOS (curl -6 times out), so IPv6-preferring clients HANG
+# or ECONNRESET (Node/Claude Code, mise/Rust) while curl's Happy-Eyeballs masks
+# it. 'no-aaaa' makes getaddrinfo return IPv4 only, so apps reach hosts over IPv4
+# — WITHOUT disabling IPv6 entirely (microsandbox serves DNS over the IPv6 ULA
+# nameserver, so disabling IPv6 would break name resolution). box talks to
+# A-record hosts only, so IPv4-only resolution is safe; harmless on Linux where
+# IPv6 egress also works. Idempotent.
 msb_net_fix() {
   local name="$1"
   # shellcheck disable=SC2016  # the snippet runs in the guest; must NOT expand host-side
-  _msb exec "$name" -- sh -c 'sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1; sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1; grep -q "^options.*\bno-aaaa\b" /etc/resolv.conf 2>/dev/null || echo "options no-aaaa" >> /etc/resolv.conf'
+  _msb exec "$name" -- sh -c 'grep -q "^options.*\bno-aaaa\b" /etc/resolv.conf 2>/dev/null || echo "options no-aaaa" >> /etc/resolv.conf'
 }
 
 # msb_docker_wait NAME -> block until dockerd is ready (cold boot starts systemd
