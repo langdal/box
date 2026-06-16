@@ -24,6 +24,7 @@ assert_contains "$out" "msb run -d --replace --name box-proj" "detached named ru
 assert_contains "$out" "--mount-dir /tmp/p:/workspace" "mounts workspace"
 assert_contains "$out" "--mount-named box-mise:/mise" "mounts mise volume"
 assert_contains "$out" "--net-default-egress deny" "locked egress"
+assert_contains "$out" "--rlimit nofile=65536" "run raises the guest open-file limit"
 # image is the LAST token, with no trailing `-- cmd`
 assert_eq "mcr.microsoft.com/devcontainers/base:ubuntu" "${out##* }" "image is last token"
 
@@ -38,6 +39,7 @@ assert_contains "$attach_out" "msb exec" "attach via exec"
 assert_contains "$attach_out" "--env PATH=/mise/shims:/mise/bin:" "attach injects mise PATH"
 assert_contains "$attach_out" "--env HOME=/home/vscode" "attach points HOME at the persistent home volume"
 assert_contains "$attach_out" "--workdir /workspace" "attach lands in the workspace"
+assert_contains "$attach_out" "--rlimit nofile=65536" "attach raises the guest open-file limit"
 assert_contains "$attach_out" "box-proj -- echo hi" "attach passes command to sandbox"
 
 # start_run forwards secrets when provided via BOX_SECRETS env (newline list).

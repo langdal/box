@@ -241,6 +241,13 @@ services, so this is safe and the egress allowlist still applies at the IP layer
 
 Applied at boot; if the sandbox is already running, `box down` first.
 
+## Open-file limit (`BOX_NOFILE`)
+
+The microVM guest defaults to a low open-file limit (`RLIMIT_NOFILE` soft 1024),
+which large `git clone`s and tools like Claude Code's plugin installer exhaust
+("Too many open files", failed `.lock` writes). box raises it to **65536** on
+every run/exec. Override with `BOX_NOFILE` (e.g. `BOX_NOFILE=1048576`).
+
 ## Egress modes
 
 | Mode | Behaviour |

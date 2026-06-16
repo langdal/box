@@ -103,6 +103,12 @@ msb_port_args() {
 # Resolve the msb binary once (it is often not on the default non-login PATH).
 MSB_BIN="${MSB_BIN:-$(command -v msb 2>/dev/null || echo "$HOME/.local/bin/msb")}"
 
+# Open-file limit for guest processes. The microVM guest defaults to a low
+# RLIMIT_NOFILE (soft 1024 / hard 4096), which large `git clone`s and tools like
+# Claude Code's plugin installer exhaust ("Too many open files", failed .lock
+# writes). msb's `--rlimit` raises it per run/exec. Override with BOX_NOFILE.
+BOX_NOFILE="${BOX_NOFILE:-65536}"
+
 # msb_available -> 0 if the resolved msb binary is runnable.
 msb_available() { [[ -x "$MSB_BIN" ]]; }
 
@@ -145,7 +151,7 @@ msb_up() {
   # Without --replace, `msb run -d --name X` restarts that stale sandbox with
   # its ORIGINAL flags and silently ignores the new mounts/net rules/secrets.
   # --replace forces a fresh boot so allowlist/secret changes take effect.
-  local args=(run -d --replace --name "$name")
+  local args=(run -d --replace --name "$name" --rlimit "nofile=$BOX_NOFILE")
   mapfile -t mounts < <(msb_mount_args "$workspace" box-mise:/mise box-home:/home/vscode)
   # hosts may be empty (full/none mode, or no allowlist); bash 3.2 leaves an
   # empty array unset, so guard the expansion to satisfy set -u.
@@ -273,8 +279,9 @@ msb_attach() {
   if [[ "${1:-}" == "--" ]]; then shift; fi
   mapfile -t env < <(msb_mise_env_args)
   # --workdir /workspace: land the shell/command in the mounted workspace,
-  # not the image default (/ or /root).
-  _msb exec --workdir /workspace "${env[@]}" "$name" -- "$@"
+  # not the image default (/ or /root). --rlimit raises the guest's low default
+  # open-file limit (exec gets its own limit, independent of the run command).
+  _msb exec --rlimit "nofile=$BOX_NOFILE" --workdir /workspace "${env[@]}" "$name" -- "$@"
 }
 
 # msb_provision IMAGE WORKSPACE
