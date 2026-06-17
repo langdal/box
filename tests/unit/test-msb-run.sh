@@ -49,6 +49,15 @@ assert_contains "$tmp_out" "--env TMPDIR=/tmp" "BOX_TMPDIR overrides the scratch
 # msb_tmp_seed creates the scratch dir in the guest (pip et al. need it to exist).
 seed_out="$(msb_tmp_seed box-proj)"
 assert_contains "$seed_out" "msb exec box-proj -- mkdir -p /workspace/.tmp" "tmp_seed creates the scratch dir"
+
+# msb_sysctl_seed raises the system-wide open-file table (fs.file-max), not just
+# the per-process rlimit; BOX_FILE_MAX overrides the target.
+sysctl_out="$(msb_sysctl_seed box-proj)"
+assert_contains "$sysctl_out" "msb exec box-proj -- sh -c" "sysctl_seed runs in the guest"
+assert_contains "$sysctl_out" "fs.file-max" "sysctl_seed raises fs.file-max"
+assert_contains "$sysctl_out" "f=2097152" "sysctl_seed defaults file-max to 2097152"
+sysctl_override="$(BOX_FILE_MAX=314159 BOX_DRY_RUN=1 bash -c 'source "$0"; msb_sysctl_seed box-proj' "$ROOT/lib/msb.sh")"
+assert_contains "$sysctl_override" "f=314159" "BOX_FILE_MAX overrides the file-max target"
 assert_contains "$attach_out" "--rlimit nofile=65536" "attach raises the guest open-file limit"
 assert_contains "$attach_out" "box-proj -- echo hi" "attach passes command to sandbox"
 

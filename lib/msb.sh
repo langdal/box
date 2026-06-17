@@ -274,6 +274,33 @@ msb_tmp_seed() {
   _msb exec "$name" -- mkdir -p "$_MSB_TMPDIR"
 }
 
+# System-wide open-file table for the guest. The per-process RLIMIT_NOFILE
+# (--rlimit nofile, see BOX_NOFILE) is only half the story: the microVM boots
+# with a small fs.file-max (the kernel auto-sizes it from the VM's little RAM),
+# so a heavy install (torch, parallel wheel builds, a big promisor git clone)
+# exhausts the GLOBAL fd table even while each process's own limit is high. Once
+# the system table is full, a *fresh* process dies before it can open its own
+# libraries ("Too many open files" / "Failed to import encodings module") — the
+# exact symptom a per-process rlimit can't explain. Override with BOX_FILE_MAX.
+BOX_FILE_MAX="${BOX_FILE_MAX:-2097152}"
+
+# msb_sysctl_seed NAME -> raise the guest kernel limits a per-process rlimit
+# can't: the system-wide open-file table (fs.file-max / fs.nr_open) and the
+# inotify watch/instance caps (vite, esbuild, file watchers exhaust the small
+# defaults). Best-effort: a read-only /proc or a kernel-capped value must never
+# block boot. sysctl -w is naturally idempotent.
+msb_sysctl_seed() {
+  local name="$1"
+  # shellcheck disable=SC2016  # the snippet runs in the guest; only $f is host-side
+  _msb exec "$name" -- sh -c '
+    f='"$BOX_FILE_MAX"'
+    sysctl -w fs.file-max="$f" >/dev/null 2>&1 || true
+    sysctl -w fs.nr_open="$f" >/dev/null 2>&1 || true
+    sysctl -w fs.inotify.max_user_instances=8192 >/dev/null 2>&1 || true
+    sysctl -w fs.inotify.max_user_watches=524288 >/dev/null 2>&1 || true
+    true'
+}
+
 # msb_home_seed NAME -> seed the persistent home (box-home at /home/vscode) with
 # the image's root shell config the first time, so a HOME=/home/vscode shell has
 # oh-my-zsh + history settings (and thus actually writes ~/.zsh_history there).

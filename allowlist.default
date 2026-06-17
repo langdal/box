@@ -28,6 +28,12 @@ mise-versions.jdx.dev
 nodejs.org
 *.nodejs.org
 
+# Sigstore — mise verifies some tool downloads (e.g. uv) with cosign/SLSA
+# attestation, which contacts sigstore's TUF/Fulcio/Rekor endpoints. Without
+# these, a runtime `mise install` of a verified tool fails attestation even
+# though the binary itself is reachable.
+*.sigstore.dev
+
 # OS packages
 deb.debian.org
 security.debian.org

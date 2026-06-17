@@ -26,6 +26,8 @@ Usage: box [--net none|sanctioned|full] [--docker] [COMMAND]
   box --docker            Run with a Docker daemon inside the sandbox (auto-builds its image).
   box --port HOST:GUEST   Publish a guest port to the host (repeatable; PORT means PORT:PORT).
   box --host-port PORT    Allow the guest to reach a host service at host.docker.internal:PORT (repeatable).
+                          Port flags are a BOOT-TIME setting: run from the HOST, not from inside the
+                          sandbox. Adding a port to a running box re-boots it to apply the change.
   box -- CMD...           Run a one-off command in the sandbox.
   box shell               Attach an extra terminal to the running sandbox.
   box provision           Build step (open egress): install mise + tools into the volume.
@@ -312,6 +314,7 @@ boot_fresh() {
   local name="$1" mode="$2" sig="$3"
   msb_up "$name" "$IMAGE" "$PWD" "$mode" "${hosts[@]}"
   msb_net_fix "$name"
+  msb_sysctl_seed "$name"
   msb_home_seed "$name"
   msb_tmp_seed "$name"
   if [[ -n "${BOX_DOCKER:-}" ]]; then
